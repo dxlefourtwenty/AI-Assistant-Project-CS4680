@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Story Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="main.js" defer></script>
+  </head>
+  <body class="min-h-screen bg-gray-950 text-gray-100 flex flex-col items-center py-10">
+    <h1 class="text-4xl font-bold mb-8 text-center text-white">AI Story Concept Generator</h1>
+
+    <div class="bg-gray-900 shadow-xl rounded-2xl p-6 w-full max-w-3xl">
+      <form id="storyForm" class="space-y-4">
+        <div>
+          <label class="block mb-1 font-semibold">Experience Level</label>
+          <input id="experience_level" type="text" placeholder="Beginner, intermediate, expert..."
+                 class="w-full p-2 rounded bg-gray-800 border border-gray-700 text-white" />
+        </div>
+        <div>
+          <label class="block mb-1 font-semibold">Genre</label>
+          <input id="genre" type="text" placeholder="Horror, sci-fi, fantasy..."
+                 class="w-full p-2 rounded bg-gray-800 border border-gray-700 text-white" />
+        </div>
+        <div>
+          <label class="block mb-1 font-semibold">Characters</label>
+          <input id="characters" type="text" placeholder="Shy hero, villain, detective..."
+                 class="w-full p-2 rounded bg-gray-800 border border-gray-700 text-white" />
+        </div>
+        <div>
+          <label class="block mb-1 font-semibold">Interests</label>
+          <input id="interests" type="text" placeholder="Example: indie horror games, story-driven films..."
+                 class="w-full p-2 rounded bg-gray-800 border border-gray-700 text-white" />
+        </div>
+        <div>
+          <label class="block mb-1 font-semibold">Your Brainstorm Note</label>
+          <textarea id="user_brainstorm" placeholder="Write your idea or notes..."
+                    class="w-full p-2 rounded bg-gray-800 border border-gray-700 text-white h-24"></textarea>
+        </div>
+        <button type="submit"
+                class="w-full bg-indigo-600 hover:bg-indigo-500 font-semibold py-2 rounded-xl transition-all">
+          Generate Stories
+        </button>
+      </form>
+    </div>
+
+    <!-- Loading spinner -->
+    <div id="loading" class="hidden mt-8 text-gray-400 animate-pulse">
+      Generating your stories...
+    </div>
+
+    <!-- Output -->
+    <div id="output" class="mt-10 w-full max-w-4xl space-y-6"></div>
+  </body>
+</html>
