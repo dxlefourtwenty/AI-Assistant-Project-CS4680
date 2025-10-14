@@ -2,9 +2,11 @@ import os
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from openai import OpenAI
-import subprocess
 import json
+from dotenv import load_dotenv
+
+# === Gemini imports ===
+import google.generativeai as genai
 
 app = FastAPI()
 
@@ -17,13 +19,17 @@ app.add_middleware(
 )
 
 # === TOGGLE THIS FLAG ===
-if_offline = True  # True = use Ollama (local), False = use OpenAI API
+if_offline = True  # True = use Gemini (local/offline_mode section), False = use OpenAI API
 
-# Load env variables (if using OpenAI)
-if not if_offline:
-    from dotenv import load_dotenv
-    load_dotenv()
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+# Load env variables
+load_dotenv()
+
+# Configure Gemini
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+
+# OpenAI fallback (if desired)
+from openai import OpenAI
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # Request body schema
 class StoryRequest(BaseModel):
@@ -33,7 +39,7 @@ class StoryRequest(BaseModel):
     interests: str
     user_brainstorm: str
 
-PROMPT_TEMPLATE = """You are an expert story development consultant and creative writing coach.
+PROMPT_TEMPLATE = """You are an expert story development consultant and creative writing coach, while also being an AI that only outputs valid JSON objects that are formatted
 
 INPUTS (replace these placeholders with the writer's data before calling the model):
 - {experience_level}
@@ -99,21 +105,57 @@ async def generate_story(data: StoryRequest):
         user_brainstorm=data.user_brainstorm,
     )
 
-    # === Offline Mode (Ollama) ===
+    # === Gemini Mode ===
     if if_offline:
         try:
-            result = subprocess.run(
-                ["ollama", "run", "llama3", user_prompt],
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                timeout=120
-            )
-            response_text = result.stdout.strip()
-            json_data = json.loads(response_text)
-            return json_data
+            model = genai.GenerativeModel("gemini-2.5-pro")
+            response = model.generate_content(user_prompt)
+            response_text = response.text.strip()
+
+            import re, json
+
+            # --- CLEANING STEP ---
+            # Remove code fences, markdown, or any pre/post text
+            cleaned = response_text
+            cleaned = re.sub(r"```(?:json)?|```", "", cleaned, flags=re.MULTILINE)
+            cleaned = re.sub(r"^[^{]*", "", cleaned, flags=re.DOTALL)  # remove text before first {
+            cleaned = re.sub(r"[^}]*$", "", cleaned, flags=re.DOTALL)  # remove text after last }
+
+            print("\n=== Gemini Raw Output ===")
+            print(response_text)
+            print("\n=== Cleaned Text ===")
+            print(cleaned)
+
+            # --- PARSE STEP ---
+            try:
+                json_data = json.loads(cleaned)
+
+                # Ensure top-level structure
+                if "stories" not in json_data or not isinstance(json_data["stories"], list):
+                    print("⚠️ Gemini JSON missing 'stories' key or invalid format.")
+                    return {
+                        "stories": [],
+                        "error": "Gemini response missing 'stories' array.",
+                        "raw": response_text
+                    }
+
+                return json_data
+
+            except json.JSONDecodeError as e:
+                print("⚠️ Gemini JSON decode error:", e)
+                print("⚠️ Cleaned text:\n", cleaned)
+                return {
+                    "stories": [],
+                    "error": f"Gemini returned invalid JSON: {str(e)}",
+                    "raw": response_text
+                }
+
         except Exception as e:
-            return {"error": f"Ollama error: {e}"}
+            print("❌ Gemini API Error:", e)
+            return {
+                "stories": [],
+                "error": f"Gemini API error: {e}"
+            }
 
     # === Online Mode (OpenAI) ===
     else:
